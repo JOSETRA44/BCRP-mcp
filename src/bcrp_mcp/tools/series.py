@@ -5,8 +5,74 @@ from mcp.server.fastmcp.exceptions import ToolError
 from pydantic import Field
 
 from ..client import BCRPClient
-from ..exceptions import BCRPAPIError, BCRPNotFoundError
+from ..exceptions import BCRPAPIError, BCRPNotFoundError, BCRPValidationError
 from ..formatters import format_latest_response, format_metadata_only, format_series_response
+
+# ---------------------------------------------------------------------------
+# Core logic — shared by the MCP tools below and by `bcrp_mcp.cli`.
+# Keeping fetch/validate/format here means the CLI and the MCP server can
+# never drift: both transports call the exact same functions.
+# ---------------------------------------------------------------------------
+
+
+async def get_series(
+    client: BCRPClient,
+    series_codes: list[str],
+    start_period: str | None = None,
+    end_period: str | None = None,
+    language: str = "esp",
+) -> dict:
+    """Fetch and format time series data for 1-10 same-frequency BCRP series."""
+    if len(series_codes) > 10:
+        raise BCRPValidationError("Maximum 10 series codes per request.")
+    if end_period and not start_period:
+        raise BCRPValidationError("Provide start_period when specifying end_period.")
+
+    raw = await client.fetch(series_codes, start_period, end_period, language)
+    result = format_series_response(raw, series_codes)
+    if result.get("count", 0) == 0:
+        return {
+            **result,
+            "warning": (
+                "No data returned for the specified period range. "
+                "The series may be discontinued or the period range may be out of bounds. "
+                "Try omitting start_period/end_period to get the latest available data."
+            ),
+        }
+    return result
+
+
+async def get_latest(
+    client: BCRPClient,
+    series_codes: list[str],
+    n_periods: int = 5,
+    language: str = "esp",
+) -> dict:
+    """Fetch the most recent `n_periods` data points for 1-10 same-frequency series."""
+    if len(series_codes) > 10:
+        raise BCRPValidationError("Maximum 10 series codes per request.")
+
+    raw = await client.fetch(series_codes, language=language)
+    return format_latest_response(raw, series_codes, n_periods)
+
+
+async def describe_series(
+    client: BCRPClient,
+    series_codes: list[str],
+    language: str = "esp",
+) -> dict:
+    """Fetch metadata only (name, frequency, date range) for 1-10 series."""
+    if len(series_codes) > 10:
+        raise BCRPValidationError("Maximum 10 series codes per request.")
+
+    raw = await client.fetch(series_codes, language=language)
+    return format_metadata_only(raw, series_codes)
+
+
+# ---------------------------------------------------------------------------
+# MCP tool wrappers — thin adapters that translate the core functions'
+# domain exceptions into ToolError for the MCP protocol.
+# ---------------------------------------------------------------------------
 
 
 def register_series_tools(mcp: FastMCP, client: BCRPClient) -> None:
@@ -67,27 +133,11 @@ def register_series_tools(mcp: FastMCP, client: BCRPClient) -> None:
             ),
         ] = "esp",
     ) -> dict:
-        if len(series_codes) > 10:
-            raise ToolError("Maximum 10 series codes per request.")
-        if end_period and not start_period:
-            raise ToolError("Provide start_period when specifying end_period.")
-
         try:
-            raw = await client.fetch(series_codes, start_period, end_period, language)
-            result = format_series_response(raw, series_codes)
-            if result.get("count", 0) == 0:
-                return {
-                    **result,
-                    "warning": (
-                        "No data returned for the specified period range. "
-                        "The series may be discontinued or the period range may be out of bounds. "
-                        "Try omitting start_period/end_period to get the latest available data."
-                    ),
-                }
-            return result
-        except BCRPNotFoundError as exc:
+            return await get_series(client, series_codes, start_period, end_period, language)
+        except BCRPValidationError as exc:
             raise ToolError(str(exc)) from exc
-        except BCRPAPIError as exc:
+        except (BCRPNotFoundError, BCRPAPIError) as exc:
             raise ToolError(str(exc)) from exc
 
     @mcp.tool(
@@ -127,11 +177,10 @@ def register_series_tools(mcp: FastMCP, client: BCRPClient) -> None:
         ] = "esp",
     ) -> dict:
         try:
-            raw = await client.fetch(series_codes, language=language)
-            return format_latest_response(raw, series_codes, n_periods)
-        except BCRPNotFoundError as exc:
+            return await get_latest(client, series_codes, n_periods, language)
+        except BCRPValidationError as exc:
             raise ToolError(str(exc)) from exc
-        except BCRPAPIError as exc:
+        except (BCRPNotFoundError, BCRPAPIError) as exc:
             raise ToolError(str(exc)) from exc
 
     @mcp.tool(
@@ -158,9 +207,8 @@ def register_series_tools(mcp: FastMCP, client: BCRPClient) -> None:
         ] = "esp",
     ) -> dict:
         try:
-            raw = await client.fetch(series_codes, language=language)
-            return format_metadata_only(raw, series_codes)
-        except BCRPNotFoundError as exc:
+            return await describe_series(client, series_codes, language)
+        except BCRPValidationError as exc:
             raise ToolError(str(exc)) from exc
-        except BCRPAPIError as exc:
+        except (BCRPNotFoundError, BCRPAPIError) as exc:
             raise ToolError(str(exc)) from exc
