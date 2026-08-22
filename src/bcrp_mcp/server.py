@@ -9,6 +9,7 @@ from .client import BCRPClient
 from .config import get_settings
 from .prompts.economic import register_prompts
 from .resources.guides import register_resources
+from .tools.bulk import register_bulk_tools
 from .tools.catalog import register_catalog_tools
 from .tools.macro import register_macro_tools
 from .tools.series import register_series_tools
@@ -19,9 +20,10 @@ Banco Central de Reserva del Perú (BCRP), Peru's central bank.
 
 No authentication is required. The API is fully public and updated in real time.
 
-## Tools (5)
+## Tools (7)
 
 - **bcrp_get_series** — Fetch time series data for 1–10 BCRP series with optional date range
+- **bcrp_get_series_long** — Fetch up to 50 series (mixed frequencies) as one tidy long-format table
 - **bcrp_get_latest** — Get the most recent N data points for 1–10 series
 - **bcrp_describe_series** — Get series metadata (name, frequency, date range) without all data
 - **bcrp_search_catalog** — Search the built-in catalog of important series by keyword
@@ -46,6 +48,7 @@ No authentication is required. The API is fully public and updated in real time.
 2. Use `bcrp_search_catalog` or `bcrp://series-catalog` to find series codes.
 3. Use `bcrp_describe_series` to verify a code exists and see its date range.
 4. Use `bcrp_get_series` for historical data or `bcrp_get_latest` for current values.
+   For many series at once — or mixed frequencies — use `bcrp_get_series_long`.
 5. Use `bcrp_get_macro_snapshot` for a quick overview of all key indicators.
 
 ## Period Format Quick Reference
@@ -79,6 +82,7 @@ def create_app() -> FastMCP:
     )
 
     register_series_tools(mcp, client)
+    register_bulk_tools(mcp, client)
     register_catalog_tools(mcp)
     register_macro_tools(mcp, client)
     register_resources(mcp)
