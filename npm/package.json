@@ -1,0 +1,42 @@
+{
+  "name": "bcrp-mcp",
+  "version": "0.1.0",
+  "description": "One-command installer for the BCRP MCP server, the `bcrp` CLI, and the `bcrp` agent skill — Peruvian central bank (BCRPData) economic data for AI agents.",
+  "bin": {
+    "bcrp-mcp": "bin/install.js"
+  },
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "bin/",
+    "skills/",
+    "README.md"
+  ],
+  "scripts": {
+    "prepack": "node scripts/stage-skill.js"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "bcrp",
+    "peru",
+    "economic-data",
+    "macroeconomics",
+    "exchange-rate",
+    "claude",
+    "skill",
+    "cli"
+  ],
+  "homepage": "https://github.com/JOSETRA44/bcrp-mcp",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JOSETRA44/bcrp-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/JOSETRA44/bcrp-mcp/issues"
+  },
+  "license": "MIT",
+  "author": "JOSETRA44"
+}

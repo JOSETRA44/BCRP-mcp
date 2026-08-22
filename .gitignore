@@ -20,3 +20,9 @@ build/
 uv.lock
 .DS_Store
 Thumbs.db
+
+# npm installer package
+node_modules/
+*.tgz
+# staged at pack time from the canonical skills/ at the repo root
+npm/skills/
