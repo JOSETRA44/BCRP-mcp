@@ -14,23 +14,45 @@ Access real-time and historical data for **exchange rates, interest rates, inter
 
 ---
 
-## Quickstart (2 minutes)
-
-**1. Install the server**
+## Quickstart — one command
 
 ```bash
-# Option A: uvx (recommended — zero setup)
-uvx bcrp-mcp
+npx bcrp-mcp
+```
 
-# Option B: pip
+That installs all three pieces, which are designed to work together:
+
+| Piece | What it is |
+|-------|-----------|
+| `bcrp-mcp` | The MCP server, so AI clients can query BCRPData |
+| `bcrp` | The CLI — same tools, for humans and scripts |
+| `bcrp` skill | Teaches agents *how* to use them correctly |
+
+It also registers the server with Claude Code automatically when the `claude` CLI is
+present, and prints the config snippet for other clients.
+
+```bash
+npx bcrp-mcp --help          # all options
+npx bcrp-mcp --skill-only    # just the agent skill
+npx bcrp-mcp --no-skill      # just the server + CLI
+npx bcrp-mcp --from .        # install the Python side from a local checkout
+```
+
+<details>
+<summary>Prefer to install the Python package directly?</summary>
+
+```bash
+uv tool install bcrp-mcp     # recommended
+pipx install bcrp-mcp
 pip install bcrp-mcp
 ```
 
-> No API key needed. BCRPData is a fully public API.
+The npx installer just wraps this and adds the skill. No API key is needed either way —
+BCRPData is a fully public API.
 
-**2. Add to your AI client** — see the [Configuration](#configuration-by-client) section.
+</details>
 
-**3. Start using it:**
+**Then start using it:**
 
 ```
 > What is the current BCRP policy rate and exchange rate?
@@ -83,6 +105,81 @@ cd bcrp-mcp
 uv sync
 cp .env.example .env    # optional — customize settings
 uv run bcrp-mcp
+```
+
+---
+
+## Command-Line Interface
+
+Installing this package also puts a standalone `bcrp` CLI on your PATH. It calls the
+**exact same tool-core functions** as the MCP server (`bcrp_mcp.tools.*`), so results
+never drift between the two — the CLI is just a second transport on top of one shared
+implementation. Useful for scripting, cron jobs, or checking data without an AI client.
+
+```bash
+bcrp --help                 # full command tree
+bcrp series --help
+bcrp series latest PD04637PD PD12301MD --n 3
+bcrp series get PN00196MM --start 2020-1 --end 2024-12
+bcrp series describe PD04637PD
+bcrp catalog search "tipo de cambio"
+bcrp catalog categories
+bcrp macro snapshot
+bcrp serve                  # run the MCP server over stdio (same as `bcrp-mcp`)
+```
+
+Output is formatted as box-drawn tables sized to your terminal, with each value rounded
+to the precision the BCRP actually publishes it at:
+
+```
+Tipo de cambio
+daily · 20.Jul.26 → 22.Jul.26 · 3 periods
+
+Series
+  PD04637PD  Tipo de cambio - TC Interbancario (S/ por US$) - Compra
+  PD12301MD  Tasas de interés - Tasa de Referencia de la Política Monetaria
+
+Data
+  ┌───────────┬───────────┬───────────┐
+  │ Period    │ PD04637PD │ PD12301MD │
+  ├───────────┼───────────┼───────────┤
+  │ 20.Jul.26 │     3.402 │      4.25 │
+  │ 21.Jul.26 │     3.397 │      4.25 │
+  │ 22.Jul.26 │         — │      4.25 │
+  └───────────┴───────────┴───────────┘
+```
+
+Output flags available on every data command:
+
+| Flag | Effect |
+|------|--------|
+| `--json` | Raw tool-output dict — identical to what the MCP tool returns |
+| `--no-color` | Disable ANSI colour (also honours `NO_COLOR`) |
+| `--ascii` | Plain ASCII tables instead of Unicode box characters |
+| `--lang esp\|ing` | Language for series names |
+
+Exit codes: `0` success, `2` invalid input, `3` series not found, `4` BCRP API error.
+
+```bash
+bcrp series latest PD04637PD --json | jq '.data[-1]'
+```
+
+---
+
+## Agent Skill
+
+The `bcrp` skill teaches AI agents how to use these tools *correctly* — the parts that
+otherwise produce confidently wrong answers: values are positional rather than keyed,
+mixed-frequency requests are silently dropped rather than rejected, period formats differ
+per frequency, and `n.d.` means "not published" rather than zero.
+
+It installs to `~/.claude/skills/bcrp` via `npx bcrp-mcp` (or `--skill-only`).
+
+The skill's reference files are **generated from the package's own catalog and API
+guides**, so they can't drift from what the server actually serves:
+
+```bash
+uv run python scripts/gen_skill_refs.py
 ```
 
 ---
@@ -394,9 +491,13 @@ bcrp-mcp/
 │   ├── exceptions.py      # Error hierarchy
 │   ├── formatters.py      # Raw BCRP JSON → clean AI-friendly dicts
 │   ├── catalog.py         # Curated series catalog + search
-│   ├── tools/             # 6 MCP tools
+│   ├── tools/             # 6 MCP tools (thin wrappers around shared core logic)
+│   ├── cli/               # `bcrp` CLI — same tool-core functions, argparse transport
 │   ├── prompts/           # 3 MCP prompts (analysis workflows)
 │   └── resources/         # 3 MCP resources (guides + catalog)
+├── skills/bcrp/           # Agent skill (references/ generated from catalog.py)
+├── npm/                   # `npx bcrp-mcp` one-command installer
+├── scripts/               # gen_skill_refs.py — regenerates skill references
 ├── tests/                 # Unit tests (no network required)
 ├── .env.example           # Optional configuration
 └── pyproject.toml
@@ -415,3 +516,81 @@ bcrp-mcp/
 All data comes from **BCRPData** — the official open statistics platform of the
 Banco Central de Reserva del Perú. For terms of use, see:
 https://estadisticas.bcrp.gob.pe/estadisticas/series/ayuda/condicionesUso
+
+## CLI for agents
+
+Peru's central bank series, straight from the source and updated daily.
+
+This CLI follows [`ARSENAL-SPEC.md`](../ARSENAL-SPEC.md), the contract every research
+tool in this workspace shares: an agent that can drive one can drive all of them.
+
+### Discover it without reading this file
+
+```bash
+bcrp describe --json          # every command, argument, row field and example
+bcrp describe <command> --json
+```
+
+The manifest is derived from the parser itself, so it cannot drift out of date.
+
+### Output
+
+`-f, --format` accepts `table`, `json`, `jsonl`, `csv`, `md`; `-o FILE` writes to a file; `-q` silences notes.
+**Data goes to stdout, notes and progress to stderr** — piping to `jq` always yields
+parseable JSON.
+
+`--format json` returns the standard envelope:
+
+```json
+{
+  "ok": true,
+  "command": "series get",
+  "source": "bcrp",
+  "fetched_at": "2026-08-21T14:03:11Z",
+  "cached": false,
+  "count": 10,
+  "meta": {},
+  "data": {},
+  "rows": []
+}
+```
+
+`count` always equals `len(rows)`. An empty result is exit 0, not an error. Failures
+return an error envelope carrying `error.code`, `error.message` and an actionable
+`error.hint`, printed to stdout in machine formats so a pipeline can inspect it.
+
+### Exit codes
+
+| Code | Meaning |
+|---|---|
+| 0 | success (including an empty result set) |
+| 1 | API returned an error or an unexpected response |
+| 2 | usage error (bad flag, bad argument, unknown format) |
+| 3 | resource not found (unknown series code) |
+| 4 | auth or configuration error |
+| 5 | rate limited or quota exhausted |
+| 6 | network failure or timeout |
+
+### Cache
+
+Results are cached on disk and survive between invocations, so a repeated query is
+instant. `--refresh` refetches and rewrites; `--no-cache` skips it entirely; the
+envelope reports `cached`.
+
+```bash
+bcrp cache stats -f json
+bcrp cache clear
+```
+
+### Recipes
+
+```bash
+bcrp series get PN01288PM --start 2015-1 --end 2025-1 -f csv -o pbi.csv
+bcrp series get PD04637PD PD04638PD --start 01-01-2024 -f jsonl
+bcrp series latest PD04637PD --n 10 -f json
+bcrp series latest PD04637PD PN01288PM -f md
+bcrp series describe PD04637PD -f json
+```
+
+Or through the workspace-wide entry point: `arsenal run bcrp <command> ...`,
+and `arsenal doctor bcrp --live` to check this CLI still honours the contract.
