@@ -6,6 +6,8 @@
 
 # BCRP MCP Server
 
+<!-- mcp-name: io.github.JOSETRA44/bcrp-mcp -->
+
 Connects any MCP-compatible AI agent to **BCRPData** — the official open-access economic statistics database of the [Banco Central de Reserva del Perú (BCRP)](https://www.bcrp.gob.pe/).
 
 Access real-time and historical data for **exchange rates, interest rates, international reserves, monetary liquidity, private sector credit, commodity prices, stock market indicators, and GDP** — no API key required.
@@ -13,6 +15,29 @@ Access real-time and historical data for **exchange rates, interest rates, inter
 **Works with:** Claude Desktop · Claude Code · Cursor · VS Code Copilot · Windsurf · Zed · Continue.dev · any MCP client
 
 ---
+
+
+
+## What you can ask it
+
+| Ask | Tool that answers it |
+|---|---|
+| "How much is the dollar in Peru today?" | `bcrp_get_latest` |
+| "Plot Peru's GDP over the last ten years" | `bcrp_get_series` |
+| "What's the current state of the Peruvian economy?" | `bcrp_get_macro_snapshot` |
+| "I need the series code for inflation" | `bcrp_search_catalog` |
+| "Export FX, inflation and GDP together as one CSV" | `bcrp_get_series_long` |
+| "What period does this series actually cover?" | `bcrp_describe_series` |
+
+**No API key, no registration, nothing to configure.** BCRPData is fully public.
+
+Series are identified by opaque codes like `PD04637PD`, which mean nothing on
+sight — so start from the catalog:
+
+```bash
+bcrp catalog search "tipo de cambio"     # find the code
+bcrp series latest PD04637PD --n 5       # then fetch it
+```
 
 ## Quickstart — one command
 
@@ -505,12 +530,6 @@ bcrp-mcp/
 
 ---
 
-## License
-
-[MIT](LICENSE) — © 2026 JOSETRA44
-
----
-
 ## Data Source
 
 All data comes from **BCRPData** — the official open statistics platform of the
@@ -594,3 +613,35 @@ bcrp series describe PD04637PD -f json
 
 Or through the workspace-wide entry point: `arsenal run bcrp <command> ...`,
 and `arsenal doctor bcrp --live` to check this CLI still honours the contract.
+
+## Troubleshooting
+
+**"I don't know the series code"**
+That is what the catalog is for: `bcrp catalog search <keyword>`, or
+`bcrp catalog categories` to browse. Codes are not guessable.
+
+**`Not found` for a code that looks right**
+BCRP codes encode frequency in their suffix (`...PD` daily, `...PM` monthly).
+A code exists only at its own frequency. Confirm with `bcrp series describe`.
+
+**"Cannot mix frequencies"**
+A single `series get` call takes series that share one frequency. Split daily and
+monthly series into separate calls.
+
+**Accented series names look wrong on Windows**
+Fixed — the CLI forces UTF-8 output. If you still see mojibake, you are on an old
+installed copy: `uv tool install --force bcrp-mcp`.
+
+## Documentation
+
+| Document | What's in it |
+|---|---|
+| [`CHANGELOG.md`](CHANGELOG.md) | What changed in each release |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Dev setup, the CLI contract, how to run the tests |
+| [`SECURITY.md`](SECURITY.md) | What this server sends and where; how to report a vulnerability |
+| [`server.json`](server.json) | Registry metadata for the official MCP registry |
+| [`../ARSENAL-SPEC.md`](../ARSENAL-SPEC.md) | The CLI contract shared by every research server here |
+
+## Licence
+
+MIT — see [`LICENSE`](LICENSE).
