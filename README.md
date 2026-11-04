@@ -1,3 +1,5 @@
+<img width="1600" height="500" alt="BCRP MCP" src="https://github.com/user-attachments/assets/79323612-ebec-49ea-91d5-321b5950bbbc" />
+
 [![MCP Badge](https://lobehub.com/badge/mcp/josetra44-bcrp-mcp)](https://lobehub.com/mcp/josetra44-bcrp-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://python.org)
