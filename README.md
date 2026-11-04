@@ -17,17 +17,83 @@ Permite a clientes MCP y agentes de IA consultar tipos de cambio, tasas de
 interés, reservas internacionales, liquidez, crédito, commodities, bolsa y PBI.
 La API del BCRP es pública: **no se necesita API key ni registro**.
 
-## Instalación rápida
+## Instalación inicial
 
-Se requiere Python 3.11 o posterior.
+Se requiere Python 3.11 o posterior. La opción recomendada es
+[`uv`](https://docs.astral.sh/uv/), un gestor rápido de Python que crea los
+entornos y administra las dependencias automáticamente.
 
-### Con `uvx` (recomendado para clientes MCP)
+### 1. Instalar `uv` y agregarlo al `PATH`
+
+#### Windows — PowerShell
+
+```powershell
+irm https://astral.sh/uv/install.ps1 | iex
+```
+
+El instalador agrega `uv` a la ruta de usuario, normalmente
+`%USERPROFILE%\.local\bin`. Cierra y vuelve a abrir PowerShell, y verifica la
+instalación:
+
+```powershell
+uv --version
+Get-Command uv
+```
+
+Si `uv` no se encuentra en una terminal ya abierta, agrega la ruta solo para
+la sesión actual:
+
+```powershell
+$env:Path = "$HOME\.local\bin;$env:Path"
+uv --version
+```
+
+#### macOS y Linux
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source "$HOME/.local/bin/env"
+uv --version
+```
+
+Si tu shell no reconoce `uv`, agrega la ruta al `PATH` de forma permanente:
+
+```bash
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+Para Zsh, usa `~/.zshrc` en lugar de `~/.bashrc`. En macOS y Linux, el
+instalador normalmente configura esta ruta automáticamente.
+
+### 2. Instalar BCRP MCP
+
+#### Ejecución directa con `uvx` — recomendada para clientes MCP
+
+`uvx` descarga y ejecuta la versión publicada sin modificar el proyecto local:
 
 ```bash
 uvx bcrp-mcp
 ```
 
-### Con `pip`
+Para comprobar que el paquete está disponible en PyPI:
+
+```bash
+uvx bcrp-mcp --help
+```
+
+#### Instalación persistente como herramienta de `uv`
+
+```bash
+uv tool install bcrp-mcp
+uv tool update-shell
+bcrp-mcp --help
+```
+
+`uv tool update-shell` agrega el directorio de herramientas de `uv` al
+`PATH`. Reinicia la terminal si el comando todavía no aparece.
+
+#### Con `pip`
 
 ```bash
 python -m pip install bcrp-mcp
@@ -42,19 +108,36 @@ bcrp catalog search "tipo de cambio"
 bcrp series latest PD04637PD --n 5
 ```
 
-### Desde el código fuente
+### 3. Configuración inicial
+
+No se requiere API key, cuenta ni archivo de credenciales. La configuración
+predeterminada funciona directamente contra la API pública de BCRPData.
+
+Para personalizar el comportamiento, copia el archivo de ejemplo y edita los
+valores:
 
 ```bash
-git clone https://github.com/JOSETRA44/BCRP-mcp.git
-cd BCRP-mcp
-uv sync
-uv run bcrp-mcp
+cp .env.example .env       # macOS/Linux
+Copy-Item .env.example .env # Windows PowerShell
 ```
 
-## Configuración en clientes MCP
+Las variables disponibles son `BCRP_CACHE_TTL`, `BCRP_TIMEOUT`,
+`BCRP_MAX_RETRIES`, `BCRP_LANGUAGE` y `LOG_LEVEL`. Consulta la sección
+[Configuración opcional](#configuración-opcional).
 
-El servidor usa transporte stdio. Con `uvx`, la configuración es la misma en
-Claude Desktop, Claude Code, Cursor y otros clientes compatibles:
+Comprueba la instalación y la conexión al catálogo local:
+
+```bash
+bcrp --version
+bcrp catalog categories
+bcrp catalog search "tipo de cambio"
+bcrp series latest PD04637PD --n 5
+```
+
+### 4. Configurar el cliente MCP
+
+El servidor usa transporte `stdio`. En Claude Desktop, Claude Code, Cursor y
+otros clientes compatibles, añade esta configuración:
 
 ```json
 {
@@ -67,7 +150,20 @@ Claude Desktop, Claude Code, Cursor y otros clientes compatibles:
 }
 ```
 
-En VS Code + GitHub Copilot (`.vscode/mcp.json`):
+Con `uv tool install`, también puedes usar el ejecutable directamente:
+
+```json
+{
+  "mcpServers": {
+    "bcrp": {
+      "command": "bcrp-mcp",
+      "args": []
+    }
+  }
+}
+```
+
+En VS Code + GitHub Copilot, guarda esta variante en `.vscode/mcp.json`:
 
 ```json
 {
@@ -79,6 +175,18 @@ En VS Code + GitHub Copilot (`.vscode/mcp.json`):
     }
   }
 }
+```
+
+Reinicia el cliente MCP después de guardar la configuración y verifica que
+aparezca el servidor `bcrp` y sus herramientas.
+
+### Instalación desde el código fuente
+
+```bash
+git clone https://github.com/JOSETRA44/BCRP-mcp.git
+cd BCRP-mcp
+uv sync
+uv run bcrp-mcp
 ```
 
 ## Herramientas MCP
