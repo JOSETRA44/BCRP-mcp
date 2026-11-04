@@ -1,4 +1,4 @@
-<img width="1600" height="500" alt="BCRP MCP" src="https://github.com/user-attachments/assets/79323612-ebec-49ea-91d5-321b5950bbbc" />
+<img width="1600" height="500" alt="BCRP MCP (1)" src="https://github.com/user-attachments/assets/ff697567-557f-4dbb-813d-c282b1de780e" />
 
 [![PyPI](https://img.shields.io/pypi/v/bcrp-mcp?logo=pypi&logoColor=white)](https://pypi.org/project/bcrp-mcp/)
 [![Python](https://img.shields.io/pypi/pyversions/bcrp-mcp?logo=python&logoColor=white)](https://pypi.org/project/bcrp-mcp/)
